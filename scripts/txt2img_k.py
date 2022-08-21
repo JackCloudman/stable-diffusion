@@ -19,6 +19,7 @@ from ldm.util import instantiate_from_config
 from ldm.models.diffusion.ddim import DDIMSampler
 from ldm.models.diffusion.plms import PLMSSampler
 import random
+import telebot
 
 
 def chunk(it, size):
@@ -190,7 +191,22 @@ def main():
         choices=["full", "autocast"],
         default="autocast"
     )
+    parser.add_argument(
+        "--token",
+        type=str,
+        help="need telegram api token",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--cid",
+        type=str,
+        help="need channel or chat id",
+        required=True,
+    )
+
     opt = parser.parse_args()
+    bot = telebot.TeleBot(opt.token, parse_mode=None)
 
     accelerator = accelerate.Accelerator()
     device = accelerator.device
@@ -299,6 +315,10 @@ def main():
                                     x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
                                     Image.fromarray(x_sample.astype(np.uint8)).save(
                                         os.path.join(sample_path, f"{file_name}_{opt.seed}_{opt.scale}.png"))
+                                    photo = open(os.path.join(sample_path, f"{file_name}_{opt.seed}_{opt.scale}.png"), 'rb')
+                                    message = f"Input: {opt.prompt}\nW:{opt.W}\nH:{opt.H}\nSeed:{opt.seed}\nSteps:{opt.ddim_steps}\nScale:{opt.scale}"
+                                    bot.send_photo(opt.cid, photo,message)
+                                    photo.close()
                                     base_count += 1
 
                             if accelerator.is_main_process and not opt.skip_grid:
